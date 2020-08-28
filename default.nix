@@ -1,24 +1,51 @@
-with import <nixpkgs> {};
+{ stdenv, fetchFromGitHub,
+  bzip2, nix, perl, perlPackages,
+}:
 
-let nix = nixUnstable; in
+with stdenv.lib;
+
+let
+  # replace these 
+  rev = "1234567890abcdef1234567890abcdef12345678";
+  sha256 = "0000000000000000000000000000000000000000000000000000";
+in
 
 stdenv.mkDerivation {
-  name = "nix-serve-2";
+  name = "nix-serve-nothing-0.1-${substring 0 7 rev}";
 
-  buildInputs = [ perl nix perlPackages.Plack perlPackages.Starman perlPackages.DBDSQLite ];
+  src = fetchFromGitHub {
+    owner = "jskrzypek";
+    repo = "nix-serve-nothing";
+    inherit rev sha256;
+  };
 
-  unpackPhase = "true";
+  buildInputs = [ bzip2 perl nix nix.perl-bindings ]
+    ++ (with perlPackages; [ DBI DBDSQLite Plack Starman ]);
 
-  installPhase =
-    ''
-      mkdir -p $out/libexec/nix-serve
-      cp ${./nix-serve.psgi} $out/libexec/nix-serve/nix-serve.psgi
+  dontBuild = true;
 
-      mkdir -p $out/bin
-      cat > $out/bin/nix-serve <<EOF
-      #! ${stdenv.shell}
-      PERL5LIB=$PERL5LIB exec ${perlPackages.Starman}/bin/starman $out/libexec/nix-serve/nix-serve.psgi "\$@"
-      EOF
-      chmod +x $out/bin/nix-serve
-    '';
+  installPhase = ''
+    mkdir -p $out/libexec/nix-serve-nothing
+    cp nix-serve-nothing.psgi $out/libexec/nix-serve-nothing/nix-serve-nothing.psgi
+
+    mkdir -p $out/bin
+    cat > $out/bin/nix-serve-nothing <<EOF
+    #! ${stdenv.shell}
+    PATH=${makeBinPath [ bzip2 nix ]}:\$PATH PERL5LIB=$PERL5LIB exec ${perlPackages.Starman}/bin/starman $out/libexec/nix-serve-nothing/nix-serve-nothing.psgi "\$@"
+    EOF
+    chmod +x $out/bin/nix-serve-nothing
+  '';
+
+  meta = {
+    homepage = "https://github.com/jskrzypek/nix-serve-nothing";
+    description = "A utility for sharing absolutely nothing as a binary cache";
+    maintainers = [{
+        email = "jskrzypek@gmail.com";
+        github = "jskrzypek";
+        githubId = 1513265;
+        name = "Joshua Skrzypek";
+    }];
+    license = licenses.lgpl21;
+    platforms = nix.meta.platforms;
+  };
 }
