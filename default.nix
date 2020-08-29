@@ -4,20 +4,10 @@
 
 with stdenv.lib;
 
-let
-  # replace these 
-  rev = "1234567890abcdef1234567890abcdef12345678";
-  sha256 = "0000000000000000000000000000000000000000000000000000";
-in
-
 stdenv.mkDerivation {
   name = "nix-serve-nothing-0.1-${substring 0 7 rev}";
 
-  src = fetchFromGitHub {
-    owner = "jskrzypek";
-    repo = "nix-serve-nothing";
-    inherit rev sha256;
-  };
+  src = ./.;
 
   buildInputs = [ bzip2 perl nix nix.perl-bindings ]
     ++ (with perlPackages; [ DBI DBDSQLite Plack Starman ]);
