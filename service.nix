@@ -1,15 +1,17 @@
-{
-  config
-, pkgs
-, lib
-, nix-serve-nothing ? import ./. {}
-, ...
-}:
+{ config, pkgs, lib, ... }:
 
+with pkgs;
 with lib;
 
 let
+  nix-serve-nothing = callPackage ./default.nix;
   cfg = config.services.nix-serve-nothing;
+  mkProxy = {enabled, target, command, when, ...}:
+    let
+      when = if when == null then "" else "when=${when}";
+    in
+    if ! enabled then "" else
+      "--proxy-opts target=${target} command=${command} ${when}";
 in
 {
   options = {
@@ -30,6 +32,38 @@ in
         description = ''
           IP address where nix-serve-nothing will bind its listening socket.
         '';
+      };
+
+      proxy = mkOption {
+        description = ''
+          Options to make the server proxy requests to another binary cache
+          when a check condition is specified.
+        '';
+        default = {};
+        type = types.submodule {
+          options = {
+            enabled = mkEnableOption "Enable the proxy.";
+
+            target = mkOption {
+              type = types.types.str;
+              description = "The address of the proxied binary cache";
+              default = "";
+            };
+
+            command = mkOption {
+              type = types.str;
+              description = "The address of the proxied binary cache";
+              default = "";
+            };
+
+            when = mkOption {
+              type = types.nullOr types.str;
+              description = ''
+                An optional value against which to compare the stdout of proxy.command
+              '';
+            };
+          };
+        };
       };
 
       extraParams = mkOption {
@@ -53,8 +87,12 @@ in
       serviceConfig = {
         Restart = "always";
         RestartSec = "5s";
-        ExecStart = "${nix-serve-nothing}/bin/nix-serve-nothing " +
-          "--listen ${cfg.bindAddress}:${toString cfg.port} ${cfg.extraParams}";
+        ExecStart = ''
+          ${nix-serve-nothing}/bin/nix-serve-nothing \
+            --listen ${cfg.bindAddress}:${toString cfg.port} \
+            ${mkProxy cfg.proxy} \
+            ${cfg.extraParams}
+        '';
         User = "nix-serve-nothing";
         Group = "nogroup";
       };

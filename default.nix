@@ -5,12 +5,14 @@
 with stdenv.lib;
 
 stdenv.mkDerivation {
-  name = "nix-serve-nothing-0.1-${substring 0 7 rev}";
+  name = "nix-serve-nothing-0.2";
 
   src = ./.;
 
   buildInputs = [ bzip2 perl nix nix.perl-bindings ]
-    ++ (with perlPackages; [ DBI DBDSQLite Plack Starman ]);
+    ++ (with perlPackages;
+        [ DBI DBDSQLite Plack PlackAppProxy
+          StringShellQuote Starman ]);
 
   dontBuild = true;
 
