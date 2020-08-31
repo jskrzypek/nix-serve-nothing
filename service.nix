@@ -4,14 +4,19 @@ with pkgs;
 with lib;
 
 let
-  nix-serve-nothing = callPackage ./default.nix;
+  nix-serve-nothing = callPackage ./default.nix {
+    inherit (pkgs) stdenv fetchFromGitHub
+      bzip2 nix perl perlPackages;
+  };
   cfg = config.services.nix-serve-nothing;
-  mkProxy = {enabled, target, command, when, ...}:
+  mkProxy = proxy:
     let
-      when = if when == null then "" else "when=${when}";
+      proxyArgs = mapAttrsToList (n: v: "${n}=${escapeShellArg v}")
+        (filterAttrs (n: v: (isString v) && v != "") proxy);
     in
-    if ! enabled then "" else
-      "--proxy-opts target=${target} command=${command} ${when}";
+    if proxy.enable -> proxyArgs != []
+      then concatStringsSep " " (["--proxy-opts"] ++ proxyArgs)
+      else "";
 in
 {
   options = {
@@ -42,10 +47,10 @@ in
         default = {};
         type = types.submodule {
           options = {
-            enabled = mkEnableOption "Enable the proxy.";
+            enable = mkEnableOption "Enable the proxy.";
 
             target = mkOption {
-              type = types.types.str;
+              type = types.str;
               description = "The address of the proxied binary cache";
               default = "";
             };
@@ -93,14 +98,8 @@ in
             ${mkProxy cfg.proxy} \
             ${cfg.extraParams}
         '';
-        User = "nix-serve-nothing";
-        Group = "nogroup";
+        DynamicUser = true;
       };
-    };
-
-    users.users.nix-serve-nothing = {
-      description = "Nix-serve-nothing user";
-      uid = config.ids.uids.nix-serve-nothing;
     };
   };
 }
