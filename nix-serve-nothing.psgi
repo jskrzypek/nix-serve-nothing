@@ -1,21 +1,17 @@
 use MIME::Base64;
 use Nix::Config;
-use Nix::Manifest;
-use Nix::Store;
-use Nix::Utils;
 use String::ShellQuote;
-use GetOpt::Long;
+use Getopt::Long;
+
 use strict;
 
 my %proxyOpts;
-GetOptions ('proxy-opts|proxy|p:s%{2,3}' => \%proxyOpts)
-my $target = $proxyOpts{'target'};
-my $check_cmd = shell_quote $proxyOpts{'command'};
-my $when = $proxyOpts{'when'};
+my $useProxy = "";
+my $proxy = 0;
+GetOptions ('proxy-opts|proxy|p:s%{2,3}' => \%proxyOpts);
 
-our $useProxy;
-our $proxy;
-
+# we don't just check at startup so we can be lazy and wait for the state when
+# first queried
 sub checkUseProxy {
     if ($useProxy != "") {
         return $useProxy;
@@ -23,19 +19,26 @@ sub checkUseProxy {
 
     $useProxy = 0;
 
-    if ($target) {
-        $proxy = Plack::App::Proxy->new(remote => $target)->to_app;
+    if ($proxyOpts{'target'} != "") {
+        $proxy = Plack::App::Proxy->new(remote => $proxyOpts{'target'})->to_app;
 
-        my $cmd_ret_val = readpipe($check_cmd);
+        my $cmd_ret_val = readpipe(shell_quote $proxyOpts{'command'});
         my $cmd_exit_code = $?;
 
-        if ($when && $cmd_ret_val == $when) {
+        if ($proxyOpts{'when'} && $cmd_ret_val == $proxyOpts{'when'}) {
             $useProxy = 1;
         }
 
         elsif ($cmd_exit_code == 0) {
             $useProxy = 1;
         }
+    }
+
+    if ($useProxy == 1) {
+        print("Nix-serve-nothing set up to proxy to " . $proxyOpts{'target'} . ".\n");
+    }
+    else {
+        print("Nix-serve-nothing set up without proxy.\n");
     }
 
     return $useProxy;
@@ -47,7 +50,7 @@ my $app = sub {
     my $path = $env->{PATH_INFO};
 
     if (checkUseProxy() == 1) {
-        return $proxy->($env)
+        return $proxy->($env);
     }
 
     elsif ($path eq "/nix-cache-info") {
