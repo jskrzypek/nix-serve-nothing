@@ -10,8 +10,12 @@ let
   cfg = config.services.nix-serve-nothing;
   mkProxy = proxy:
     let
-      proxyArgs = mapAttrsToList (n: v: "${n}=${escapeShellArg v}")
-        (filterAttrs (n: v: (isString v) && v != "") proxy);
+      proxyArgs = mapAttrsToList
+        (n: v: "${n}=${escapeShellArg v}")
+        (filterAttrs
+          (n: v:
+            ((isString v) && v != "") || (isInt v) || (isType types.float v))
+          proxy);
     in
     if proxy.enable -> proxyArgs != []
       then concatStringsSep " " (["--proxy-opts"] ++ proxyArgs)
