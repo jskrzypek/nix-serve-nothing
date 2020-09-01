@@ -5,8 +5,7 @@ with lib;
 
 let
   nix-serve-nothing = callPackage ./default.nix {
-    inherit (pkgs) stdenv fetchFromGitHub
-      bzip2 nix perl perlPackages;
+    inherit stdenv fetchFromGitHub bzip2 nix perl perlPackages;
   };
   cfg = config.services.nix-serve-nothing;
   mkProxy = proxy:
@@ -56,7 +55,7 @@ in
             };
 
             command = mkOption {
-              type = types.str;
+              type = types.separatedString " ";
               description = "The address of the proxied binary cache";
               default = "";
             };
@@ -66,6 +65,12 @@ in
               description = ''
                 An optional value against which to compare the stdout of proxy.command
               '';
+            };
+
+            cachettl = mkOption {
+              type = types.nullOr types.int;
+              description = "The number of seconds to wait before checking the command again.";
+              default = 300;
             };
           };
         };

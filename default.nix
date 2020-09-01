@@ -5,7 +5,7 @@
 with stdenv.lib;
 
 stdenv.mkDerivation {
-  name = "nix-serve-nothing-0.3";
+  name = "nix-serve-nothing-0.4";
 
   src = ./.;
 

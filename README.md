@@ -31,3 +31,4 @@ can be passed on the command line to the PSGI server:
    * **target** - The remote binary cache to proxy requests to
    * **command** - The shell command to determine if requests should be proxied
    * **when** - (*optional*) A value to match the output of command against
+   * **cachettl** - (*optional - default 300*) The number of seconds to wait before checking the command again.

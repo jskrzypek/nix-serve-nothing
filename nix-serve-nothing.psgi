@@ -5,17 +5,27 @@ use Getopt::Long;
 
 use strict;
 
-my %proxyOpts;
+my %proxyOpts = (
+    target => "",
+    command => "",
+    when => "",
+    cachettl => 300,
+);
 my $useProxy = "";
 my $proxy = 0;
-GetOptions ('proxy-opts|proxy|p:s%{2,3}' => \%proxyOpts);
+my $checkedAt = 0;
+GetOptions ('proxy-opts|p:s%{,}' => \%proxyOpts);
 
 # we don't just check at startup so we can be lazy and wait for the state when
 # first queried
 sub checkUseProxy {
-    if ($useProxy != "") {
+    my $now = time;
+
+    if ($useProxy != "" || $now - $checkedAt < int($proxyOpts{'cachettl'})) {
         return $useProxy;
     }
+
+    $checkedAt = $now;
 
     $useProxy = 0;
 
@@ -35,10 +45,18 @@ sub checkUseProxy {
     }
 
     if ($useProxy == 1) {
-        print("Nix-serve-nothing set up to proxy to " . $proxyOpts{'target'} . ".\n");
+        print(
+            localtime($checkedAt)
+            . ": Nix-serve-nothing set up to proxy to "
+            . $proxyOpts{'target'}
+            . ".\n"
+        );
     }
     else {
-        print("Nix-serve-nothing set up without proxy.\n");
+        print(
+            localtime($checkedAt)
+            . ": Nix-serve-nothing set up without proxy.\n"
+        );
     }
 
     return $useProxy;
