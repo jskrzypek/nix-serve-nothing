@@ -3,7 +3,7 @@
 This is a hacky little fork of Eelco Dolstra's [nix-serve](https://github.com/edolstra/nix-serve) that lets us serve
 responses that nix can understand and avoid a roundtrip call to a binary cache.
 
-If you have a binary cache sitting behind a VPN/Firewall running nix-build 
+If you have a binary cache sitting behind a VPN/Firewall running nix-build
 requires you to be on the VPN, or else nix hangs for a while until the request
 times out and then fails. By providing a server that always claims to not have
 the requested binaries we can force nix to move on to asking the next cache, or
@@ -18,8 +18,29 @@ binary cache without needing to impersonate its certificates.
 
 ## Installation
 
-Use the included default.nix derivation to build the server, and service.nix to
-set up the service.
+### NixOS
+
+``` nix
+imports = [
+  "${(fetchTarball "https://github.com/jskrzypek/nix-serve-nothing/archive/0cfe7f8a4b3aed152be590885deefadb1324c732.tar.gz")}/service.nix"
+];
+
+nix.binaryCaches = [ "http://localhost:13823" ];
+
+services.nix-serve-nothing = {
+  enable = true;
+  bindAddress = "localhost";
+  port = 13823;
+  proxy = {
+    enable = true;
+    target = "https://your.nix.cache.here";
+    # Command to run to determine whether or not to proxy
+    command = "systemctl is-active openvpn-your-vpn.service";
+    # If the command outputs this string, proxy
+    when = "active";
+  };
+};
+```
 
 ## Options
 
