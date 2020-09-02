@@ -4,22 +4,25 @@ with pkgs;
 with lib;
 
 let
-  nix-serve-nothing = callPackage ./default.nix {
-    inherit stdenv fetchFromGitHub bzip2 nix perl perlPackages;
-  };
+  nix-serve-nothing = callPackage ./default.nix { inherit pkgs; };
   cfg = config.services.nix-serve-nothing;
-  mkProxy = proxy:
+  mkProxyArgs = nameMapper: proxy:
+    mapAttrs'
+      (n: v: nameValuePair
+        (nameMapper n)
+        (if (isString v) then (''"${v}"'') else (toString v)))
+      (filterAttrs
+        (n: v:
+          ((isString v) && v != "") || (isInt v) || (isType types.float v))
+        proxy);
+  mkProxyFlags = proxy:
     let
-      proxyArgs = mapAttrsToList
-        (n: v: "${n}=${escapeShellArg v}")
-        (filterAttrs
-          (n: v:
-            ((isString v) && v != "") || (isInt v) || (isType types.float v))
-          proxy);
+      proxyArgs = mapAttrsToList (n: v: "${n}=${v}") (mkProxyArgs toLower proxy);
     in
     if proxy.enable -> proxyArgs != []
       then concatStringsSep " " (["--proxy-opts"] ++ proxyArgs)
       else "";
+  mkProxyEnv = mkProxyArgs (n: "PROXY_${toUpper n}");
 in
 {
   options = {
@@ -98,15 +101,15 @@ in
 
       path = [ config.nix.package.out pkgs.bzip2.bin ];
 
+      environment = mkProxyEnv cfg.proxy;
       serviceConfig = {
         Restart = "always";
         RestartSec = "5s";
-        ExecStart = ''
-          ${nix-serve-nothing}/bin/nix-serve-nothing \
-            --listen ${cfg.bindAddress}:${toString cfg.port} \
-            ${mkProxy cfg.proxy} \
-            ${cfg.extraParams}
-        '';
+        ExecStart = concatStringsSep " "
+          [ "${nix-serve-nothing}/bin/nix-serve-nothing"
+            "--listen ${cfg.bindAddress}:${toString cfg.port}"
+            "${mkProxyFlags cfg.proxy}"
+            "${cfg.extraParams}" ];
         DynamicUser = true;
       };
     };
